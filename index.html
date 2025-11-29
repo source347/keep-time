@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Pomodoro</title>
+    <style>
+        /* --- CSS VARIABLES (The Engine of Customization) --- */
+        :root {
+            --bg-color: #1a1a2e;
+            --container-bg: #16213e;
+            --text-color: #e94560;
+            --accent-color: #0f3460;
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --radius: 12px;
+        }
+
+        /* --- GLOBAL RESET & TYPOGRAPHY --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        button {
+            cursor: pointer;
+            font-family: var(--font-main);
+            border: none;
+            outline: none;
+            transition: transform 0.1s ease, opacity 0.2s;
+        }
+        button:active { transform: scale(0.98); }
+
+        /* --- MAIN LAYOUT --- */
+        .app-container {
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* --- HEADER & SETTINGS BUTTON --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+        }
+        
+        .settings-btn {
+            background: transparent;
+            color: var(--text-color);
+            font-size: 1.5rem;
+            opacity: 0.7;
+        }
+        .settings-btn:hover { opacity: 1; }
+
+        /* --- TIMER CARD --- */
+        .timer-card {
+            background-color: var(--container-bg);
+            padding: 40px;
+            border-radius: var(--radius);
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        /* Progress Bar at top of card */
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 6px;
+            background-color: var(--text-color);
+            width: 0%; 
+            transition: width 1s linear;
+        }
+
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .mode-btn {
+            background: transparent;
+            color: var(--text-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            opacity: 0.6;
+            border: 2px solid transparent;
+        }
+
+        .mode-btn.active {
+            opacity: 1;
+            background-color: rgba(255,255,255,0.05);
+            border-color: var(--text-color);
+        }
+
+        .timer-display {
+            font-size: 6rem;
+            font-weight: bold;
+            line-height: 1;
+            margin: 20px 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .main-btn {
+            background-color: var(--text-color);
+            color: var(--bg-color); /* Contrast text against the accent */
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: var(--radius);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .reset-btn {
+            background: transparent;
+            border: 2px solid var(--text-color);
+            color: var(--text-color);
+            padding: 15px 20px;
+            border-radius: var(--radius);
+            font-weight: bold;
+        }
+
+        /* --- NOTES & TASKS SECTION --- */
+        .tasks-section {
+            background-color: var(--container-bg);
+            padding: 25px;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        .tasks-header {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        .task-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #new-task-input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.2);
+            color: var(--text-color);
+            font-family: var(--font-main);
+        }
+
+        #add-task-btn {
+            background-color: var(--text-color);
+            color: var(--bg-color);
+            padding: 0 20px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .task-list {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .task-item {
+            background: rgba(255,255,255,0.03);
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid transparent;
+        }
+
+        .task-item.active-task {
+            border-left: 4px solid var(--text-color);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .task-content {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .task-notes {
+            display: block;
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            resize: none;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+        
+        .task-actions button {
+            background: transparent;
+            color: var(--text-color);
+            opacity: 0.5;
+            margin-left: 5px;
+            font-size: 1.2rem;
+        }
+        .task-actions button:hover { opacity: 1; }
+
+        /* --- MODAL (SETTINGS) --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.open { display: flex; }
+
+        .modal {
+            background-color: var(--container-bg);
+            padding: 30px;
+            border-radius: var(--radius);
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal h2 { margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+
+        .setting-group { margin-bottom: 20px; }
+        .setting-group label { display: block; margin-bottom: 8px; font-weight: bold; opacity: 0.9; }
+        
+        .row { display: flex; gap: 15px; margin-bottom: 10px; }
+        .col { flex: 1; }
+
+        input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-color);
+            border-radius: 6px;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 40px;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1.5rem;
+            background: transparent;
+            color: var(--text-color);
+        }
+
+        .save-btn {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--text-color);
+            color: var(--bg-color);
+            font-weight: bold;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <h2>My Focus</h2>
+            <button class="settings-btn" onclick="openSettings()">⚙️</button>
+        </header>
+
+        <div class="timer-card">
+            <div class="progress-bar" id="progress-bar"></div>
+            
+            <div class="mode-selector">
+                <button class="mode-btn active" onclick="switchMode('pomodoro')" id="btn-pomodoro">Pomodoro</button>
+                <button class="mode-btn" onclick="switchMode('shortBreak')" id="btn-short">Short Break</button>
+                <button class="mode-btn" onclick="switchMode('longBreak')" id="btn-long">Long Break</button>
+            </div>
+
+            <div class="timer-display" id="time-display">25:00</div>
+
+            <div class="controls">
+                <button class="main-btn" id="start-btn" onclick="toggleTimer()">Start</button>
+                <button class="reset-btn" onclick="resetTimer()">Reset</button>
+            </div>
+        </div>
+
+        <div class="tasks-section">
+            <div class="tasks-header">Tasks & Notes</div>
+            <div class="task-input-group">
+                <input type="text" id="new-task-input" placeholder="What needs to be done?">
+                <button id="add-task-btn" onclick="addTask()">Add</button>
+            </div>
+            <ul class="task-list" id="task-list">
+                </ul>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <button class="close-modal" onclick="closeSettings()">×</button>
+            <h2>Customization</h2>
+
+            <div class="setting-group">
+                <label>Timer Durations (minutes)</label>
+                <div class="row">
+                    <div class="col">
+                        <label style="font-size:0.8rem">Pomodoro</label>
+                        <input type="number" id="set-pomodoro" value="25">
+                    </div>
+                    <div class="col">
+                        <label style="font-size:0.8rem">Short Break</label>
+                        <input type="number" id="set-short" value="5">
+                    </div>
+                    <div class="col">
+                        <label style="font-size:0.8rem">Long Break</label>
+                        <input type="number" id="set-long" value="15">
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>Theme Colors</label>
+                <div class="row">
+                    <div class="col">
+                        <label style="font-size:0.8rem">Background</label>
+                        <input type="color" id="set-bg-color" value="#1a1a2e">
+                    </div>
+                    <div class="col">
+                        <label style="font-size:0.8rem">Card/Box</label>
+                        <input type="color" id="set-container-color" value="#16213e">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label style="font-size:0.8rem">Primary Text</label>
+                        <input type="color" id="set-text-color" value="#e94560">
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>Typography</label>
+                <select id="set-font">
+                    <option value="'Segoe UI', sans-serif">Modern Sans (Default)</option>
+                    <option value="'Courier New', monospace">Typewriter / Code</option>
+                    <option value="'Georgia', serif">Elegant Serif</option>
+                    <option value="'Verdana', sans-serif">Clean / Readable</option>
+                </select>
+            </div>
+
+            <button class="save-btn" onclick="saveSettings()">Apply & Save</button>
+        </div>
+    </div>
+
+    <script>
+        // --- STATE MANAGEMENT ---
+        const defaultSettings = {
+            pomodoro: 25,
+            shortBreak: 5,
+            longBreak: 15,
+            bgColor: '#1a1a2e',
+            containerColor: '#16213e',
+            textColor: '#e94560',
+            font: "'Segoe UI', sans-serif"
+        };
+
+        let settings = JSON.parse(localStorage.getItem('pomodoroSettings')) || defaultSettings;
+        let tasks = JSON.parse(localStorage.getItem('pomodoroTasks')) || [];
+        
+        let timer = null;
+        let timeLeft = settings.pomodoro * 60;
+        let currentMode = 'pomodoro'; // 'pomodoro', 'shortBreak', 'longBreak'
+        let isRunning = false;
+        let initialTime = settings.pomodoro * 60;
+
+        // --- DOM ELEMENTS ---
+        const timeDisplay = document.getElementById('time-display');
+        const startBtn = document.getElementById('start-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const modal = document.getElementById('settings-modal');
+        
+        // --- INITIALIZATION ---
+        function init() {
+            applyTheme();
+            renderTasks();
+            resetTimer();
+            
+            // Populate settings inputs
+            document.getElementById('set-pomodoro').value = settings.pomodoro;
+            document.getElementById('set-short').value = settings.shortBreak;
+            document.getElementById('set-long').value = settings.longBreak;
+            document.getElementById('set-bg-color').value = settings.bgColor;
+            document.getElementById('set-container-color').value = settings.containerColor;
+            document.getElementById('set-text-color').value = settings.textColor;
+            document.getElementById('set-font').value = settings.font;
+        }
+
+        // --- TIMER LOGIC ---
+        function toggleTimer() {
+            if (isRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+            isRunning = true;
+            startBtn.innerText = 'Pause';
+            
+            timer = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateDisplay();
+                } else {
+                    completeTimer();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            isRunning = false;
+            clearInterval(timer);
+            startBtn.innerText = 'Start';
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            switch (currentMode) {
+                case 'pomodoro': initialTime = settings.pomodoro * 60; break;
+                case 'shortBreak': initialTime = settings.shortBreak * 60; break;
+                case 'longBreak': initialTime = settings.longBreak * 60; break;
+            }
+            timeLeft = initialTime;
+            updateDisplay();
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // Update active button UI
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            if(mode === 'pomodoro') document.getElementById('btn-pomodoro').classList.add('active');
+            if(mode === 'shortBreak') document.getElementById('btn-short').classList.add('active');
+            if(mode === 'longBreak') document.getElementById('btn-long').classList.add('active');
+
+            resetTimer();
+        }
+
+        function updateDisplay() {
+            const m = Math.floor(timeLeft / 60);
+            const s = timeLeft % 60;
+            const displayString = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+            timeDisplay.innerText = displayString;
+            document.title = `(${displayString}) My Focus`;
+
+            // Progress Bar
+            const percentage = ((initialTime - timeLeft) / initialTime) * 100;
+            progressBar.style.width = `${percentage}%`;
+        }
+
+        function completeTimer() {
+            pauseTimer();
+            playBeep();
+            alert("Timer Completed!");
+        }
+
+        // --- AUDIO (No external files) ---
+        function playBeep() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.value = 440; // A4
+            gain.gain.value = 0.1;
+            
+            osc.start();
+            osc.stop(ctx.currentTime + 0.5); // 0.5 seconds beep
+        }
+
+        // --- TASKS / NOTES LOGIC ---
+        function addTask() {
+            const input = document.getElementById('new-task-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const newTask = {
+                id: Date.now(),
+                text: text,
+                note: '',
+                isActive: false
+            };
+
+            tasks.push(newTask);
+            input.value = '';
+            saveTasks();
+            renderTasks();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveTasks();
+            renderTasks();
+        }
+
+        function toggleActiveTask(id) {
+            tasks.forEach(t => {
+                if (t.id === id) t.isActive = !t.isActive;
+                else t.isActive = false; // Only one active at a time usually
+            });
+            saveTasks();
+            renderTasks();
+        }
+
+        function updateTaskNote(id, newNote) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.note = newNote;
+                saveTasks();
+            }
+        }
+
+        function saveTasks() {
+            localStorage.setItem('pomodoroTasks', JSON.stringify(tasks));
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('task-list');
+            list.innerHTML = '';
+
+            tasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = `task-item ${task.isActive ? 'active-task' : ''}`;
+                
+                li.innerHTML = `
+                    <div class="task-content">
+                        <div style="font-weight:bold; cursor:pointer;" onclick="toggleActiveTask(${task.id})">
+                            ${task.isActive ? '▶ ' : ''}${task.text}
+                        </div>
+                        <textarea class="task-notes" placeholder="Notes for this block..." oninput="updateTaskNote(${task.id}, this.value)">${task.note}</textarea>
+                    </div>
+                    <div class="task-actions">
+                        <button onclick="deleteTask(${task.id})">🗑</button>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        // --- SETTINGS LOGIC ---
+        function openSettings() { modal.classList.add('open'); }
+        function closeSettings() { modal.classList.remove('open'); }
+
+        function saveSettings() {
+            settings.pomodoro = parseInt(document.getElementById('set-pomodoro').value);
+            settings.shortBreak = parseInt(document.getElementById('set-short').value);
+            settings.longBreak = parseInt(document.getElementById('set-long').value);
+            
+            settings.bgColor = document.getElementById('set-bg-color').value;
+            settings.containerColor = document.getElementById('set-container-color').value;
+            settings.textColor = document.getElementById('set-text-color').value;
+            settings.font = document.getElementById('set-font').value;
+
+            localStorage.setItem('pomodoroSettings', JSON.stringify(settings));
+            
+            applyTheme();
+            closeSettings();
+            
+            // If timer isn't running, reset it to apply new time immediately
+            if (!isRunning) resetTimer();
+        }
+
+        function applyTheme() {
+            const root = document.documentElement;
+            root.style.setProperty('--bg-color', settings.bgColor);
+            root.style.setProperty('--container-bg', settings.containerColor);
+            root.style.setProperty('--text-color', settings.textColor);
+            root.style.setProperty('--font-main', settings.font);
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
